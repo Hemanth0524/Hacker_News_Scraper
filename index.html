@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hacker News Live Feed</title>
+  <style>
+    /* Global Styles */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f6f6ef;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      background-color: #ff6600;
+      color: #fff;
+      width: 100%;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2em;
+    }
+    header p {
+      margin: 5px 0 0;
+      font-size: 1em;
+      opacity: 0.9;
+    }
+    /* Container for stories */
+    #story-list {
+      width: 90%;
+      max-width: 800px;
+      margin: 20px auto;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .story {
+      padding: 15px 10px;
+      border-bottom: 1px solid #eee;
+      transition: background-color 0.2s ease-in-out;
+    }
+    .story:hover {
+      background-color: #f0f0f0;
+    }
+    .story a {
+      text-decoration: none;
+      color: #333;
+      font-size: 1.1em;
+      font-weight: bold;
+    }
+    .story a:hover {
+      color: #ff6600;
+    }
+    .meta {
+      font-size: 0.9em;
+      color: #999;
+      margin-top: 5px;
+    }
+    /* Responsive handling */
+    @media (max-width: 600px) {
+      header h1 {
+        font-size: 1.5em;
+      }
+      .story a {
+        font-size: 1em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hacker News Live Feed</h1>
+    <p>Real-time stories updated automatically</p>
+  </header>
+  <div id="story-list">
+    <!-- Scraped stories will appear here -->
+    <p>Waiting for data...</p>
+  </div>
+
+  <script>
+    // Connect to the WebSocket server on port 8080 (adjust if needed)
+    const ws = new WebSocket('ws://localhost:8080');
+
+    ws.onopen = () => {
+      console.log('Connected to WebSocket server');
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.warn('WebSocket connection closed');
+    };
+
+    // Global array to store all received stories
+    const allStories = [];
+
+    ws.onmessage = (event) => {
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (err) {
+        console.error('Error parsing JSON:', err);
+        return;
+      }
+      
+      // If data is a simple string (e.g. a count message), display it
+      if (typeof data === 'string') {
+        document.getElementById('story-list').innerHTML = `<p>${data}</p>`;
+      } else if (Array.isArray(data)) {
+        // Append new stories, avoiding duplicates (using link as unique property)
+        data.forEach(story => {
+          if (!allStories.find(s => s.link === story.link)) {
+            allStories.push(story);
+          }
+        });
+        displayStories(allStories);
+      } else {
+        console.warn('Unknown data format received:', data);
+      }
+    };
+
+    // Function to display all stories in the UI
+    function displayStories(stories) {
+      const storyListDiv = document.getElementById('story-list');
+      let html = '';
+      stories.forEach(story => {
+        html += `
+          <div class="story">
+            <a href="${story.link}" target="_blank">${story.title}</a>
+            <div class="meta">
+              ${story.score ? story.score + ' points' : ''} 
+              ${story.author ? '| by ' + story.author : ''} 
+              ${story.time ? '| ' + story.time : ''}
+              ${story.comments != null ? '| ' + story.comments + ' comments' : ''}
+            </div>
+          </div>
+        `;
+      });
+      storyListDiv.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
